@@ -1,0 +1,9 @@
+.calva
+.clj-kondo
+.cpcache
+.lsp
+.shadow-cljs
+node_modules
+out
+resources/public/js
+target

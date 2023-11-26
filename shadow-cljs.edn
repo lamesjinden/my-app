@@ -1,0 +1,10 @@
+{:deps     {:aliases [:dev :client :dev-client]}
+ :builds   {:app   {:target     :browser
+                    :modules    {:main {:entries [my.client]
+                                        :init-fn my.client/init}}
+                    :output-dir "resources/public/js"
+                    :devtools   {:preloads [preload devtools.preload]
+                                 :watch-dir "resources/public"}}
+
+            :tests {:target    :node-test
+                    :output-to "out/node-tests.js"}}}

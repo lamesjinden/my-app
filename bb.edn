@@ -1,0 +1,75 @@
+{:tasks
+ {:init               (do (def global "global"))
+
+  ;; region Client app build tasks
+
+  clean-client        {:requires ([babashka.fs :as fs])
+                       :task     (let [main-css   "resources/public/main.css"
+                                       output-dir "resources/public/js"
+                                       out-dir    "out"]
+                                   (println "Cleaning (client)")
+                                   (println "  " main-css)
+                                   (fs/delete-if-exists main-css)
+                                   (println "  " output-dir)
+                                   (fs/delete-tree output-dir)
+                                   (println "  " out-dir)
+                                   (fs/delete-tree out-dir))}
+
+  build-client        (do
+                        (println "Compiling ClojureScript")
+                        (shell "npx shadow-cljs -A:dev:dev-client:client release app")
+                        (shell {:out "resources/public/main.css"} "find src/client/ -name '*.css' -exec cat {} ;")
+                        (shell "npx lightningcss --minify --bundle resources/public/main.css -o resources/public/main.css"))
+
+  test-client         (do
+                        (shell "npx shadow-cljs compile tests")
+                        (shell "node out/node-tests.js"))
+
+ ;; endregion 
+
+ ;; region Server app build tasks
+
+  clean-server        {:requires ([babashka.fs :as fs])
+                       :task     (let [target-dir "target"]
+                                   (println "Cleaning (server)")
+                                   (println "  " target-dir)
+                                   (fs/delete-tree target-dir))}
+
+  build-server        (do
+                        (println "Compiling Clojure")
+                        (clojure "-T:uberjar uber"))
+
+  test-server         (clojure "-X:test-server :dirs '[\"test/server\"]'")
+
+ ;; endregion 
+
+ ;; region Top-level tasks
+
+  clean               {:requires ([babashka.fs :as fs])
+                       :task     (do
+                                   (run 'clean-client)
+                                   (run 'clean-server))}
+
+  all                 (do (run 'clean)
+                          (run 'build-client)
+                          (run 'build-server))
+
+ ;; endregion
+
+ ;; region Development Tasks
+
+ ;;   client
+  run-dev-client      (run '-run-dev-client {:parallel true})
+  -run-dev-client {:depends [run-dev-client:cljs run-dev-client:css]}
+  run-dev-client:cljs (do (shell "npx shadow-cljs -A:dev:dev-client:client watch app"))
+  run-dev-client:css (do (shell "npx onchange -o '> resources/public/main.css && lightningcss --bundle resources/public/main.css -o resources/public/main.css' -i src/client/my/*.css src/client/my/**/*.css -- find src/client/ -name '*.css' -exec cat {} ;"))
+
+ ;;   server
+  run-dev-server      (let [args (clojure.string/join " " *command-line-args*)]
+                        (clojure (format "-M:run-dev-server:dev-server:server:dev %s" args)))
+  run-dev-server-repl (clojure "-M:nrepl-main:dev-server:server:dev")
+
+ ;; endregion 
+
+ ;; Just run the server
+  run-server          (clojure "-M:run-server:server")}}
